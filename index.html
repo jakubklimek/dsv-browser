@@ -1,0 +1,1829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DSV Browser - Data Specification Vocabulary Explorer</title>
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #2d3748;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+            height: 100vh;
+        }
+
+        .sidebar {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            overflow-y: auto;
+        }
+
+        .main-content {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1 {
+            color: #4a5568;
+            margin-bottom: 10px;
+            font-size: 1.8em;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            color: #718096;
+            margin-bottom: 25px;
+            font-size: 0.95em;
+        }
+
+        .input-section {
+            margin-bottom: 20px;
+        }
+        
+        .input-section h3 {
+            margin-bottom: 15px;
+            color: #4a5568;
+            font-size: 1.1em;
+        }
+        
+        .input-section h4 {
+            margin: 15px 0 10px 0;
+            color: #4a5568;
+            font-size: 1em;
+        }
+        
+        .url-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+        
+        .url-input-group .url-input {
+            flex: 1;
+        }
+        
+        .predefined-urls {
+            border-top: 1px solid #e2e8f0;
+            padding-top: 15px;
+        }
+        
+        .url-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 0.9em;
+        }
+        
+        .control-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .url-input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .url-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #718096;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #4a5568;
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background: #e53e3e;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c53030;
+            transform: translateY(-1px);
+        }
+
+        #status {
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .status-success {
+            background: #f0fff4;
+            color: #22543d;
+            border: 1px solid #9ae6b4;
+        }
+
+        .status-error {
+            background: #fed7d7;
+            color: #742a2a;
+            border: 1px solid #fc8181;
+        }
+
+        .status-info {
+            background: #ebf8ff;
+            color: #2a4365;
+            border: 1px solid #90cdf4;
+        }
+
+        .status-warning {
+            background: #fefcbf;
+            color: #744210;
+            border: 1px solid #f6e05e;
+        }
+
+        .specification-list {
+            margin-top: 25px;
+        }
+
+        .specification-list h3 {
+            margin-bottom: 15px;
+            color: #4a5568;
+        }
+
+        #specs-container {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .spec-item {
+            padding: 12px;
+            margin: 8px 0;
+            background: #f7fafc;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            transition: all 0.2s ease;
+        }
+
+        .spec-item:hover {
+            background: #edf2f7;
+            transform: translateX(4px);
+        }
+
+        .spec-title {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 4px;
+        }
+
+        .spec-url {
+            font-size: 0.85em;
+            color: #718096;
+            margin-bottom: 4px;
+            word-break: break-all;
+        }
+
+        .spec-type {
+            font-size: 0.8em;
+            color: #4a5568;
+            background: #e2e8f0;
+            padding: 2px 8px;
+            border-radius: 12px;
+            display: inline-block;
+        }
+
+        .spec-relationships {
+            font-size: 0.8em;
+            color: #667eea;
+            margin-top: 4px;
+        }
+
+        .legend-section {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .legend-section h3 {
+            margin-bottom: 15px;
+            color: #4a5568;
+        }
+
+        .legend-items {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9em;
+            color: #4a5568;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 1px solid #ddd;
+        }
+
+        .legend-arrow {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .loading {
+            text-align: center;
+            color: #718096;
+            font-style: italic;
+            padding: 20px;
+        }
+
+        .visualization-container {
+            flex: 1;
+            position: relative;
+            min-height: 400px;
+        }
+
+        .visualization-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .visualization-header h2 {
+            color: #4a5568;
+            font-size: 1.4em;
+        }
+
+        #network-visualization {
+            width: 100%;
+            height: 100%;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            background: #fafafa;
+            position: relative;
+        }
+
+        #network-visualization canvas {
+            position: absolute !important;
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+        }
+
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr;
+                height: auto;
+                min-height: 100vh;
+            }
+            
+            .sidebar {
+                margin-bottom: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>DSV Browser</h1>
+            <p class="subtitle">Data Specification Vocabulary Explorer</p>
+            
+            <div class="input-section">
+                <h3>Load Specification</h3>
+                <div class="url-input-group">
+                    <input 
+                        type="url" 
+                        class="url-input" 
+                        id="spec-url" 
+                        placeholder="Enter specification URL..."
+                        value="https://mff-uk.github.io/specifications/dcat-ap/"
+                    >
+                    <button class="btn btn-primary" onclick="loadSpecificationFromURL()">Load</button>
+                </div>
+                
+                <div class="predefined-urls">
+                    <h4>Sample Specifications</h4>
+                    <div class="url-buttons">
+                        <button class="btn btn-secondary btn-small" onclick="loadPredefinedSpec('https://mff-uk.github.io/specifications/dcat-ap/')">DCAT-AP</button>
+                        <button class="btn btn-secondary btn-small" onclick="loadPredefinedSpec('https://mff-uk.github.io/specifications/dcat-dap/')">DCAT-DAP</button>
+                        <button class="btn btn-secondary btn-small" onclick="loadPredefinedSpec('https://mff-uk.github.io/data-specification-vocabulary/dsv-dap/')">DSV-DAP</button>
+                        <button class="btn btn-secondary btn-small" onclick="loadPredefinedSpec('https://mff-uk.github.io/data-specification-vocabulary/dsv/')">DSV</button>
+                    </div>
+                    <div class="control-buttons">
+                        <button class="btn btn-danger" onclick="clearAll()">Clear All</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="status"></div>
+            
+            <div class="specification-list">
+                <h3>Loaded Specifications</h3>
+                <div id="specs-container">
+                    <div class="loading">No specifications loaded yet</div>
+                </div>
+            </div>
+            
+            <div class="legend-section">
+                <h3>Legend</h3>
+                <div class="legend-items">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #CD853F;"></div>
+                        <span>DSV Specification</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #4CAF50;"></div>
+                        <span>Vocabulary</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-arrow">→</div>
+                        <span>profiles relationship</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-arrow" style="color: #888;">⇢</div>
+                        <span>uses relationship</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="visualization-header">
+                <h2>Specification Network</h2>
+            </div>
+            <div class="visualization-container">
+                <div id="network-visualization"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DSV Parser - Embedded version for live specification loading
+        class DSVParser {
+            constructor() {
+                this.prefixes = {
+                    'dsv': 'https://w3id.org/dsv#',
+                    'dsv-dap': 'https://w3id.org/dsv-dap#',
+                    'prof': 'http://www.w3.org/ns/dx/prof/',
+                    'dcterms': 'http://purl.org/dc/terms/',
+                    'skos': 'http://www.w3.org/2004/02/skos/core#',
+                    'rdfs': 'http://www.w3.org/2000/01/rdf-schema#',
+                    'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
+                };
+            }
+
+            async parseSpecification(url) {
+                try {
+                    showStatus(`Loading specification from ${url}...`, 'info');
+                    
+                    const response = await this.fetchWithCORS(url);
+                    const content = await response.text();
+                    
+                    // Try to extract JSON-LD from script tags
+                    let dsvData = this.extractJSONLD(content);
+                    
+                    if (!dsvData) {
+                        // Try to find DSV file references
+                        const dsvUrl = this.findDSVFile(content, url);
+                        if (dsvUrl) {
+                            dsvData = await this.fetchDSVFile(dsvUrl);
+                        }
+                    }
+                    
+                    if (!dsvData) {
+                        // Last resort: try common DSV file patterns
+                        const commonPaths = ['/dsv.jsonld', '/dsv.ttl', '/metadata.jsonld'];
+                        for (const path of commonPaths) {
+                            try {
+                                const testUrl = new URL(path, url).href;
+                                dsvData = await this.fetchDSVFile(testUrl);
+                                if (dsvData) {
+                                    break;
+                                }
+                            } catch (e) {
+                                // Continue to next path
+                            }
+                        }
+                    }
+                    
+                    if (dsvData) {
+                        return this.processDSVData(dsvData, url);
+                    } else {
+                        // Create a basic specification object from the page content
+                        return this.createBasicSpecification(content, url);
+                    }
+                    
+                } catch (error) {
+                    console.warn(`Failed to parse specification ${url}:`, error);
+                    throw new Error(`Failed to parse specification: ${error.message}`);
+                }
+            }
+
+            async fetchWithCORS(url) {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+                
+                try {
+                    const response = await fetch(url, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response;
+                } catch (error) {
+                    clearTimeout(timeoutId);
+                    
+                    if (error.name === 'AbortError') {
+                        throw new Error(`Request timeout for ${url}`);
+                    }
+                    
+                    console.warn(`Direct fetch failed for ${url}, trying CORS proxy:`, error.message);
+                    
+                    try {
+                        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+                        const proxyResponse = await fetch(proxyUrl);
+                        
+                        if (!proxyResponse.ok) {
+                            throw new Error(`Proxy HTTP ${proxyResponse.status}: ${proxyResponse.statusText}`);
+                        }
+                        
+                        const proxyData = await proxyResponse.json();
+                        
+                        return {
+                            ok: true,
+                            status: 200,
+                            text: () => Promise.resolve(proxyData.contents),
+                            json: () => Promise.resolve(JSON.parse(proxyData.contents))
+                        };
+                    } catch (proxyError) {
+                        console.error(`Both direct and proxy fetch failed for ${url}:`, proxyError);
+                        throw new Error(`Failed to fetch ${url}: ${error.message}. Proxy also failed: ${proxyError.message}`);
+                    }
+                }
+            }
+
+            extractJSONLD(content) {
+                const jsonldRegex = /<script[^>]*type=["\']application\/ld\+json["\'][^>]*>(.*?)<\/script>/gis;
+                let match;
+                const allJsonLD = [];
+                
+                while ((match = jsonldRegex.exec(content)) !== null) {
+                    try {
+                        const jsonld = JSON.parse(match[1]);
+                        console.log(`🔍 Found JSON-LD:`, jsonld);
+                        if (this.isDSVData(jsonld)) {
+                            allJsonLD.push(jsonld);
+                        }
+                    } catch (e) {
+                        continue;
+                    }
+                }
+                
+                console.log(`🔍 Found ${allJsonLD.length} DSV-related JSON-LD objects`);
+                
+                if (allJsonLD.length === 0) {
+                    return null;
+                }
+                
+                // Prefer arrays or objects with multiple relationships
+                for (const jsonld of allJsonLD) {
+                    if (Array.isArray(jsonld)) {
+                        console.log(`🎯 Selecting JSON-LD array with ${jsonld.length} items`);
+                        return jsonld;
+                    }
+                }
+                
+                // Prefer objects that look like full specifications rather than individual relationships
+                for (const jsonld of allJsonLD) {
+                    if (jsonld && typeof jsonld === 'object') {
+                        // Look for objects that have specification-like properties
+                        const hasSpecProps = jsonld['@type'] && (
+                            jsonld['title'] || jsonld['name'] || 
+                            jsonld['description'] || jsonld['dcterms:title'] ||
+                            (Array.isArray(jsonld['@type']) && jsonld['@type'].some(t => t.includes('ApplicationProfile')))
+                        );
+                        
+                        if (hasSpecProps) {
+                            console.log(`🎯 Selecting specification-like JSON-LD object`);
+                            return jsonld;
+                        }
+                    }
+                }
+                
+                // Fallback to first found
+                console.log(`🎯 Fallback to first JSON-LD object`);
+                return allJsonLD[0];
+            }
+
+            findDSVFile(content, baseUrl) {
+                const patterns = [
+                    /href=["\']([^"\']*dsv[^"\']*\.(?:jsonld|ttl|rdf))["\']>/gi,
+                    /href=["\']([^"\']*metadata[^"\']*\.(?:jsonld|ttl|rdf))["\']>/gi,
+                    /"hasArtifact":\s*"([^"]*\.(?:jsonld|ttl))"/gi
+                ];
+                
+                for (const pattern of patterns) {
+                    let match;
+                    while ((match = pattern.exec(content)) !== null) {
+                        try {
+                            return new URL(match[1], baseUrl).href;
+                        } catch (e) {
+                            continue;
+                        }
+                    }
+                }
+                
+                return null;
+            }
+
+            async fetchDSVFile(url) {
+                try {
+                    const response = await this.fetchWithCORS(url);
+                    const content = await response.text();
+                    
+                    if (url.endsWith('.jsonld')) {
+                        return JSON.parse(content);
+                    } else if (url.endsWith('.ttl') || url.endsWith('.rdf')) {
+                        console.warn('Turtle/RDF parsing not implemented yet');
+                        return null;
+                    }
+                } catch (error) {
+                    console.warn(`Failed to fetch DSV file ${url}:`, error);
+                    return null;
+                }
+            }
+
+            isDSVData(data) {
+                const jsonStr = JSON.stringify(data);
+                return jsonStr.includes('dsv') || jsonStr.includes('DSV') || 
+                       jsonStr.includes('prof:Profile') || jsonStr.includes('hasProfile') ||
+                       jsonStr.includes('profileOf');
+            }
+
+            processDSVData(data, sourceUrl) {
+                console.log(`📊 Raw DSV data for ${sourceUrl}:`, JSON.stringify(data, null, 2));
+                console.log(`📊 DSV data type: ${Array.isArray(data) ? 'Array' : typeof data}`);
+                console.log(`📊 DSV data keys:`, typeof data === 'object' && data ? Object.keys(data) : 'N/A');
+                
+                // Check if this is a relationship object (HTML document artifact)
+                if (data['inSpecificationOf'] && Array.isArray(data['inSpecificationOf'])) {
+                    console.log(`🎯 Found HTML document artifact with specification references`);
+                    
+                    // Get the specification from inSpecificationOf array
+                    const specificationObjects = data['inSpecificationOf'];
+                    console.log(`📋 Found ${specificationObjects.length} specification objects`);
+                    
+                    if (specificationObjects.length > 0) {
+                        const primarySpec = specificationObjects[0]; // Take the first/primary specification
+                        console.log(`📋 Using primary specification:`, primarySpec);
+                        
+                        // Extract profiles from this specification's isProfileOf
+                        const profiles = this.extractProfilesFromSpecification(primarySpec);
+                        
+                        // Extract title with fallback
+                        const extractedTitle = this.extractTitleFromSpecification(primarySpec);
+                        const finalTitle = extractedTitle || this.extractNameFromUrl(sourceUrl);
+                        console.log(`📋 Title extraction: extracted='${extractedTitle}', fallback='${this.extractNameFromUrl(sourceUrl)}', final='${finalTitle}'`);
+                        
+                        const spec = {
+                            id: this.generateId(sourceUrl),
+                            url: sourceUrl,
+                            title: finalTitle,
+                            description: this.extractDescriptionFromSpecification(primarySpec) || `Specification loaded from ${sourceUrl}`,
+                            profiles: profiles,
+                            profiledBy: [],
+                            uses: [], // TODO: Extract uses from specification
+                            usedBy: [],
+                            type: this.extractTypeFromSpecification(primarySpec)
+                        };
+
+                        console.log(`📋 Processed DSV specification from inSpecificationOf:`, spec);
+                        return spec;
+                    }
+                }
+                
+                // Fallback to original processing for other structures
+                const extractedTitle = this.extractTitle(data);
+                const spec = {
+                    id: this.generateId(sourceUrl),
+                    url: sourceUrl,
+                    title: extractedTitle || this.extractNameFromUrl(sourceUrl),
+                    description: this.extractDescription(data) || `Specification loaded from ${sourceUrl}`,
+                    profiles: this.extractProfiles(data),
+                    profiledBy: [],
+                    uses: this.extractUses(data),
+                    usedBy: [],
+                    type: this.extractType(data)
+                };
+
+                console.log(`📋 Processed DSV specification (fallback):`, spec);
+                console.log(`📋 Title extraction: extracted='${extractedTitle}', fallback='${this.extractNameFromUrl(sourceUrl)}', final='${spec.title}'`);
+                return spec;
+            }
+
+            extractProfilesFromSpecification(specObject) {
+                const profiles = [];
+                console.log(`🔍 extractProfilesFromSpecification called with:`, specObject);
+                
+                if (specObject && specObject['isProfileOf'] && Array.isArray(specObject['isProfileOf'])) {
+                    console.log(`📋 Found isProfileOf array with ${specObject['isProfileOf'].length} items`);
+                    
+                    specObject['isProfileOf'].forEach((profileRef, index) => {
+                        console.log(`📋 Profile reference ${index}:`, profileRef);
+                        if (profileRef && profileRef['hasArtifact']) {
+                            let artifactUrl = profileRef['hasArtifact'];
+                            console.log(`📎 Found profile artifact URL: ${artifactUrl}`);
+                            console.log(`📎 Artifact URL type: ${typeof artifactUrl}`);
+                            
+                            // Handle arrays - extract the first URL from the array
+                            if (Array.isArray(artifactUrl)) {
+                                console.log(`📎 hasArtifact is an array with ${artifactUrl.length} items:`, artifactUrl);
+                                if (artifactUrl.length > 0) {
+                                    artifactUrl = artifactUrl[0]; // Take the first URL
+                                    console.log(`📎 Extracted first URL from array: ${artifactUrl}`);
+                                }
+                            }
+                            
+                            if (typeof artifactUrl === 'string' && artifactUrl && artifactUrl !== '.' && artifactUrl !== '' && artifactUrl !== '#') {
+                                console.log(`📎 Adding valid artifact URL: ${artifactUrl}`);
+                                profiles.push(artifactUrl);
+                            } else {
+                                console.log(`⚠️ Skipping invalid artifact URL (type ${typeof artifactUrl}): '${artifactUrl}'`);
+                            }
+                        } else {
+                            console.log(`⚠️ No hasArtifact found in profile reference ${index}`);
+                        }
+                    });
+                }
+                
+                console.log(`🔍 Final extracted profiles from specification:`, profiles);
+                console.log(`🔍 Extracted profile URLs count: ${profiles.length}`);
+                profiles.forEach((url, index) => {
+                    console.log(`  Profile ${index}: ${url}`);
+                });
+                return profiles;
+            }
+
+            extractTitleFromSpecification(specObject) {
+                if (specObject) {
+                    let title = specObject.title || specObject.name || specObject.label || 
+                           specObject['dcterms:title'] || specObject['rdfs:label'] || 
+                           specObject['skos:prefLabel'] || specObject['dct:title'];
+                    
+                    // Handle cases where title is an object
+                    if (title && typeof title === 'object') {
+                        if (title['@value']) {
+                            title = title['@value'];
+                        } else if (Array.isArray(title) && title.length > 0) {
+                            title = title[0];
+                            if (typeof title === 'object' && title['@value']) {
+                                title = title['@value'];
+                            }
+                        } else {
+                            // Handle language maps - prefer "@" (default), "en", or first available
+                            title = title['@'] || title['en'] || title[''] || Object.values(title)[0];
+                        }
+                    }
+                    
+                    return typeof title === 'string' ? title : null;
+                }
+                return null;
+            }
+
+            async extractVocabularyTitle(url) {
+                try {
+                    const response = await fetch(url, {
+                        headers: {
+                            'Accept': 'application/rdf+xml, text/turtle, application/n-triples, application/ld+json, text/plain'
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        return null;
+                    }
+                    
+                    const content = await response.text();
+                    
+                    // Try to parse as different RDF formats
+                    let title = null;
+                    
+                    // Check if it's JSON-LD
+                    if (content.trim().startsWith('{') || content.trim().startsWith('[')) {
+                        title = this.extractTitleFromJsonLD(content);
+                        if (title) return title;
+                    }
+                    
+                    // Check if it's Turtle or similar
+                    title = this.extractTitleFromTurtle(content);
+                    if (title) return title;
+                    
+                    // Check if it's RDF/XML
+                    title = this.extractTitleFromRDFXML(content);
+                    if (title) return title;
+                    
+                    return null;
+                    
+                } catch (error) {
+                    console.error(`Error extracting vocabulary title from ${url}:`, error);
+                    return null;
+                }
+            }
+
+            extractTitleFromJsonLD(content) {
+                try {
+                    const data = JSON.parse(content);
+                    const items = Array.isArray(data) ? data : [data];
+                    
+                    for (const item of items) {
+                        if (item['@type'] && (
+                            item['@type'].includes('owl:Ontology') || 
+                            item['@type'].includes('http://www.w3.org/2002/07/owl#Ontology') ||
+                            item['@type'] === 'owl:Ontology' ||
+                            item['@type'] === 'http://www.w3.org/2002/07/owl#Ontology'
+                        )) {
+                            const title = item['rdfs:label'] || item['skos:prefLabel'] || item['dct:title'] || 
+                                         item['dcterms:title'] || item['title'] || item['name'];
+                            
+                            if (title) {
+                                return this.extractStringFromRDFValue(title);
+                            }
+                        }
+                    }
+                    return null;
+                } catch (error) {
+                    console.error(`Error parsing JSON-LD:`, error);
+                    return null;
+                }
+            }
+
+            extractTitleFromTurtle(content) {
+                try {
+                    // Simple regex-based extraction for Turtle format
+                    const ontologyRegex = /(?:@prefix\s+\w*:\s*<[^>]+>\s*\.\s*)*([^<>\s]+)\s+a\s+(?:owl:)?Ontology/gi;
+                    const labelRegex = /(?:rdfs:label|skos:prefLabel|dct:title|dcterms:title)\s+["']([^"']+)["']/gi;
+                    
+                    let match;
+                    while ((match = ontologyRegex.exec(content)) !== null) {
+                        // Look for labels near this ontology declaration
+                        const contextStart = Math.max(0, match.index - 1000);
+                        const contextEnd = Math.min(content.length, match.index + 2000);
+                        const context = content.substring(contextStart, contextEnd);
+                        
+                        const labelMatch = labelRegex.exec(context);
+                        if (labelMatch) {
+                            return labelMatch[1];
+                        }
+                    }
+                    
+                    // Fallback: look for any label in the content
+                    const anyLabelMatch = labelRegex.exec(content);
+                    if (anyLabelMatch) {
+                        return anyLabelMatch[1];
+                    }
+                    
+                    return null;
+                } catch (error) {
+                    console.error(`Error parsing Turtle:`, error);
+                    return null;
+                }
+            }
+
+            extractTitleFromRDFXML(content) {
+                try {
+                    // Simple regex-based extraction for RDF/XML
+                    const ontologyRegex = /<owl:Ontology[^>]*(?:rdf:about=["']([^"']+)["'])?[^>]*>/gi;
+                    const labelRegex = /<(?:rdfs:label|skos:prefLabel|dct:title|dcterms:title)[^>]*>([^<]+)</gi;
+                    
+                    let match;
+                    while ((match = ontologyRegex.exec(content)) !== null) {
+                        // Look for labels near this ontology declaration
+                        const contextStart = Math.max(0, match.index - 500);
+                        const contextEnd = Math.min(content.length, match.index + 1500);
+                        const context = content.substring(contextStart, contextEnd);
+                        
+                        const labelMatch = labelRegex.exec(context);
+                        if (labelMatch) {
+                            return labelMatch[1].trim();
+                        }
+                    }
+                    
+                    // Fallback: look for any label in the content
+                    const anyLabelMatch = labelRegex.exec(content);
+                    if (anyLabelMatch) {
+                        return anyLabelMatch[1].trim();
+                    }
+                    
+                    return null;
+                } catch (error) {
+                    console.error(`Error parsing RDF/XML:`, error);
+                    return null;
+                }
+            }
+
+            extractStringFromRDFValue(value) {
+                if (typeof value === 'string') {
+                    return value;
+                } else if (typeof value === 'object') {
+                    if (value['@value']) {
+                        return value['@value'];
+                    } else if (Array.isArray(value) && value.length > 0) {
+                        return this.extractStringFromRDFValue(value[0]);
+                    } else {
+                        // Handle language maps
+                        return value['@'] || value['en'] || value[''] || Object.values(value)[0];
+                    }
+                }
+                return null;
+            }
+
+            extractDescriptionFromSpecification(specObject) {
+                if (specObject) {
+                    const description = specObject.description || specObject['dcterms:description'] || 
+                           specObject['rdfs:comment'] || specObject['skos:definition'];
+                    return description;
+                }
+                return null;
+            }
+
+            extractTypeFromSpecification(specObject) {
+                if (specObject && specObject['@type']) {
+                    return Array.isArray(specObject['@type']) ? specObject['@type'][0] : specObject['@type'];
+                }
+                return 'Specification';
+            }
+
+            async createVocabularySpecification(url) {
+                let title = this.extractNameFromUrl(url);
+                
+                // Try to extract title from RDF content
+                try {
+                    const rdfTitle = await this.extractVocabularyTitle(url);
+                    if (rdfTitle) {
+                        title = rdfTitle;
+                    }
+                } catch (error) {
+                    console.error(`Error extracting RDF title:`, error);
+                }
+                
+                // Try to get a better title by checking the URL structure if no RDF title
+                if (!title || title === this.extractNameFromUrl(url)) {
+                    try {
+                        const urlParts = url.split('/');
+                        const filename = urlParts[urlParts.length - 1];
+                        if (filename && filename !== '') {
+                            title = filename.replace(/\.(jsonld|ttl|rdf|owl|n3|nt)$/i, '');
+                        }
+                    } catch (e) {
+                        // Use fallback title
+                    }
+                }
+                
+                const spec = {
+                    id: this.generateId(url),
+                    url: url,
+                    title: title,
+                    description: `Vocabulary loaded from ${url}`,
+                    profiles: [], // Vocabularies don't profile other specs
+                    profiledBy: [],
+                    uses: [], // Vocabularies don't use other specs
+                    usedBy: [],
+                    type: 'Vocabulary'
+                };
+
+                return spec;
+            }
+
+            createBasicSpecification(content, url) {
+                const titleMatch = content.match(/<title[^>]*>([^<]*)<\/title>/i);
+                const title = titleMatch ? titleMatch[1].trim() : this.extractNameFromUrl(url);
+                
+                // Add some known relationships for demo purposes
+                const profiles = [];
+                const uses = [];
+                
+                console.log(`🔗 Checking relationships for URL: ${url}`);
+                
+                // Add known relationships based on URL patterns
+                if (url.includes('dcat-ap')) {
+                    profiles.push('https://mff-uk.github.io/specifications/dcat-dap/');
+                    console.log(`📎 DCAT-AP profiles: ${profiles}`);
+                } else if (url.includes('dcat-dap')) {
+                    profiles.push('https://mff-uk.github.io/data-specification-vocabulary/dsv-dap/');
+                    console.log(`📎 DCAT-DAP profiles: ${profiles}`);
+                } else if (url.includes('dsv-dap')) {
+                    uses.push('https://mff-uk.github.io/data-specification-vocabulary/dsv/');
+                    console.log(`📎 DSV-DAP uses: ${uses}`);
+                }
+                
+                const spec = {
+                    id: this.generateId(url),
+                    url: url,
+                    title: title,
+                    description: `Specification loaded from ${url}`,
+                    profiles: profiles,
+                    profiledBy: [],
+                    uses: uses,
+                    usedBy: [],
+                    type: 'Specification'
+                };
+                
+                console.log(`📋 Created basic specification:`, spec);
+                return spec;
+            }
+
+            generateId(url) {
+                if (typeof url !== 'string') {
+                    console.warn(`⚠️ generateId called with non-string:`, url);
+                    return 'spec-' + Date.now();
+                }
+                
+                const id = url.split('/').filter(part => part && part !== 'https:' && part !== 'http:').pop() || 
+                           'spec-' + Date.now();
+                console.log(`🏷️ Generated ID for ${url}: ${id}`);
+                return id;
+            }
+
+            extractTitle(data) {
+                console.log(`📝 extractTitle called with data type: ${Array.isArray(data) ? 'Array' : typeof data}`);
+                
+                if (Array.isArray(data)) {
+                    console.log(`📝 Processing array with ${data.length} items for title`);
+                    // Look for the specification object (not the document)
+                    for (let i = 0; i < data.length; i++) {
+                        const item = data[i];
+                        console.log(`📝 Array item ${i} type:`, item && item['@type']);
+                        
+                        if (item && item['@type']) {
+                            const type = Array.isArray(item['@type']) ? item['@type'] : [item['@type']];
+                            // Prefer titles from application profiles or specifications over documents
+                            if (type.some(t => t.includes('ApplicationProfile') && !t.includes('Document'))) {
+                                const title = this.extractTitleFromObject(item);
+                                if (title) {
+                                    console.log(`📝 Found title from ApplicationProfile: ${title}`);
+                                    return title;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Fallback to any item with a title
+                    for (let i = 0; i < data.length; i++) {
+                        const item = data[i];
+                        const title = this.extractTitleFromObject(item);
+                        if (title) {
+                            console.log(`📝 Found fallback title from item ${i}: ${title}`);
+                            return title;
+                        }
+                    }
+                } else {
+                    const title = this.extractTitleFromObject(data);
+                    if (title) {
+                        console.log(`📝 Found title from single object: ${title}`);
+                        return title;
+                    }
+                }
+                
+                console.log(`📝 No title found`);
+                return null;
+            }
+            
+            extractTitleFromObject(data) {
+                if (typeof data === 'object' && data !== null) {
+                    // If this is a relationship object, we shouldn't extract title from it
+                    if (data['inSpecificationOf'] && data['hasArtifact']) {
+                        console.log(`📝 This is a relationship object, skipping title extraction`);
+                        return null;
+                    }
+                    
+                    const title = data.title || data.name || data.label || 
+                           data['dcterms:title'] || data['rdfs:label'] || 
+                           data['skos:prefLabel'];
+                    console.log(`📝 extractTitleFromObject - available keys:`, Object.keys(data));
+                    console.log(`📝 extractTitleFromObject - found title:`, title);
+                    return title;
+                }
+                
+                return null;
+            }
+
+            extractDescription(data) {
+                if (Array.isArray(data)) {
+                    for (const item of data) {
+                        const desc = this.extractDescription(item);
+                        if (desc) return desc;
+                    }
+                }
+                
+                if (typeof data === 'object' && data !== null) {
+                    return data.description || data['dcterms:description'] || 
+                           data['rdfs:comment'] || data['skos:definition'];
+                }
+                
+                return null;
+            }
+
+            extractProfiles(data) {
+                const profiles = [];
+                
+                console.log(`🔍 extractProfiles called with data type: ${Array.isArray(data) ? 'Array' : typeof data}`);
+                
+                if (Array.isArray(data)) {
+                    console.log(`🔍 Processing array with ${data.length} items`);
+                    for (let i = 0; i < data.length; i++) {
+                        const item = data[i];
+                        console.log(`🔍 Array item ${i}:`, item);
+                        
+                        // Look for the application profile object (not the document)
+                        if (item && item['@type']) {
+                            const type = Array.isArray(item['@type']) ? item['@type'] : [item['@type']];
+                            if (type.some(t => t.includes('ApplicationProfile') && !t.includes('Document'))) {
+                                console.log(`🎯 Found ApplicationProfile object at item ${i}`);
+                                console.log(`🎯 ApplicationProfile keys:`, Object.keys(item));
+                                console.log(`🎯 Full ApplicationProfile object:`, item);
+                                
+                                // Check all possible property names for profile relationships
+                                const possibleProfileKeys = [
+                                    'isProfileOf', 'profileOf', 'prof:isProfileOf', 
+                                    'profiles', 'extends', 'specializes',
+                                    'dcterms:conformsTo', 'conformsTo'
+                                ];
+                                
+                                for (const key of possibleProfileKeys) {
+                                    if (item[key]) {
+                                        console.log(`🎯 Found profile relationship with key '${key}':`, item[key]);
+                                    }
+                                }
+                                
+                                if (item['isProfileOf']) {
+                                    const profileOf = Array.isArray(item['isProfileOf']) ? item['isProfileOf'] : [item['isProfileOf']];
+                                    console.log(`🎯 Found isProfileOf in ApplicationProfile:`, profileOf);
+                                    
+                                    profileOf.forEach((relationshipObj, index) => {
+                                        console.log(`🔍 Relationship ${index}:`, relationshipObj);
+                                        if (relationshipObj && relationshipObj['hasArtifact']) {
+                                            const artifactUrl = relationshipObj['hasArtifact'];
+                                            console.log(`📎 Found hasArtifact URL: ${artifactUrl}`);
+                                            profiles.push(artifactUrl);
+                                        } else {
+                                            console.log(`⚠️ No hasArtifact in relationship ${index}`);
+                                        }
+                                    });
+                                }
+                            }
+                        }
+                        
+                        // Also recursively check nested objects
+                        profiles.push(...this.extractProfiles(item));
+                    }
+                } else if (typeof data === 'object' && data !== null) {
+                    console.log(`🔍 Processing object, keys:`, Object.keys(data));
+                    
+                    // NEW: Check if this is a relationship object with inSpecificationOf
+                    if (data['inSpecificationOf'] && data['hasArtifact']) {
+                        console.log(`🎯 Found relationship object with inSpecificationOf and hasArtifact`);
+                        let artifactUrl = data['hasArtifact'];
+                        console.log(`📎 Raw artifact URL: '${artifactUrl}'`);
+                        console.log(`📎 Full relationship object:`, data);
+                        console.log(`📎 inSpecificationOf property:`, data['inSpecificationOf']);
+                        console.log(`📎 inSpecificationOf type:`, typeof data['inSpecificationOf']);
+                        
+                        // Handle relative URLs and self-references
+                        if (artifactUrl === '.' || artifactUrl === '' || artifactUrl === '#') {
+                            console.log(`⚠️ Skipping self-reference artifact URL: '${artifactUrl}'`);
+                            // Skip self-references
+                        } else if (artifactUrl && !artifactUrl.startsWith('http')) {
+                            // Try to resolve relative URL against current URL if we have sourceUrl context
+                            console.log(`� Attempting to resolve relative URL: '${artifactUrl}'`);
+                            // Note: we'd need sourceUrl passed to this function to resolve properly
+                            profiles.push(artifactUrl);
+                        } else if (artifactUrl && artifactUrl.startsWith('http')) {
+                            console.log(`📎 Adding absolute URL: ${artifactUrl}`);
+                            profiles.push(artifactUrl);
+                        }
+                    }
+                    
+                    // Also check if this object contains arrays of relationships
+                    for (const [key, value] of Object.entries(data)) {
+                        if (Array.isArray(value) && (key.includes('inSpecificationOf') || key.includes('isProfileOf'))) {
+                            console.log(`🔍 Found relationship array '${key}' with ${value.length} items:`, value);
+                            value.forEach((relationship, index) => {
+                                console.log(`  Relationship ${index}:`, relationship);
+                                console.log(`  Relationship ${index} keys:`, Object.keys(relationship));
+                                if (relationship && relationship['hasArtifact']) {
+                                    const url = relationship['hasArtifact'];
+                                    if (url && url !== '.' && url !== '' && url !== '#') {
+                                        console.log(`📎 Adding relationship URL: ${url}`);
+                                        profiles.push(url);
+                                    }
+                                } else {
+                                    console.log(`  No 'hasArtifact' found in relationship ${index}`);
+                                    // Try other possible URL properties
+                                    const possibleUrlProps = ['@id', 'url', 'artifact', 'hasResource', 'resource'];
+                                    for (const prop of possibleUrlProps) {
+                                        if (relationship[prop]) {
+                                            console.log(`  Found '${prop}': ${relationship[prop]}`);
+                                            const url = relationship[prop];
+                                            if (url && url !== '.' && url !== '' && url !== '#' && typeof url === 'string') {
+                                                console.log(`📎 Adding URL from '${prop}': ${url}`);
+                                                profiles.push(url);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                    }
+                    
+                    // Direct check for isProfileOf (fallback)
+                    if (data['isProfileOf']) {
+                        const profileOf = Array.isArray(data['isProfileOf']) ? data['isProfileOf'] : [data['isProfileOf']];
+                        console.log(`🎯 Found direct isProfileOf:`, profileOf);
+                        
+                        profileOf.forEach((relationshipObj, index) => {
+                            console.log(`🔍 Relationship ${index}:`, relationshipObj);
+                            if (relationshipObj && relationshipObj['hasArtifact']) {
+                                const artifactUrl = relationshipObj['hasArtifact'];
+                                console.log(`📎 Found hasArtifact URL: ${artifactUrl}`);
+                                profiles.push(artifactUrl);
+                            } else {
+                                console.log(`⚠️ No hasArtifact in relationship ${index}`);
+                            }
+                        });
+                    }
+                    
+                    // Look for prof:isProfileOf relationships (fallback)
+                    if (data['prof:isProfileOf']) {
+                        const profileOf = Array.isArray(data['prof:isProfileOf']) ? data['prof:isProfileOf'] : [data['prof:isProfileOf']];
+                        profileOf.forEach(profile => {
+                            if (typeof profile === 'string') {
+                                profiles.push(profile);
+                            } else if (profile && profile['@id']) {
+                                profiles.push(profile['@id']);
+                            }
+                        });
+                    }
+                } else {
+                    console.log(`🔍 Data is not an object or array: ${typeof data}`);
+                }
+                
+                console.log(`🔍 Final extracted profiles:`, profiles);
+                return [...new Set(profiles)]; // Remove duplicates
+            }
+
+            extractUses(data) {
+                const uses = [];
+                
+                console.log(`📚 extractUses called with data type: ${Array.isArray(data) ? 'Array' : typeof data}`);
+                
+                if (Array.isArray(data)) {
+                    console.log(`📚 Processing array with ${data.length} items`);
+                    for (let i = 0; i < data.length; i++) {
+                        const item = data[i];
+                        
+                        // Look for the application profile object (not the document)
+                        if (item && item['@type']) {
+                            const type = Array.isArray(item['@type']) ? item['@type'] : [item['@type']];
+                            if (type.some(t => t.includes('ApplicationProfile') && !t.includes('Document'))) {
+                                console.log(`🎯 Found ApplicationProfile object at item ${i} for usesTermFrom`);
+                                if (item['usesTermFrom']) {
+                                    const usesTermFrom = Array.isArray(item['usesTermFrom']) ? item['usesTermFrom'] : [item['usesTermFrom']];
+                                    console.log(`🎯 Found usesTermFrom in ApplicationProfile:`, usesTermFrom);
+                                    
+                                    usesTermFrom.forEach((relationshipObj, index) => {
+                                        console.log(`📚 UsesTermFrom relationship ${index}:`, relationshipObj);
+                                        if (relationshipObj && relationshipObj['hasArtifact']) {
+                                            const artifactUrl = relationshipObj['hasArtifact'];
+                                            console.log(`📚 Found usesTermFrom hasArtifact URL: ${artifactUrl}`);
+                                            uses.push(artifactUrl);
+                                        } else {
+                                            console.log(`⚠️ No hasArtifact in usesTermFrom relationship ${index}`);
+                                        }
+                                    });
+                                }
+                            }
+                        }
+                        
+                        // Also recursively check nested objects
+                        uses.push(...this.extractUses(item));
+                    }
+                } else if (typeof data === 'object' && data !== null) {
+                    console.log(`📚 Processing object for uses, keys:`, Object.keys(data));
+                    
+                    // Direct check for usesTermFrom (fallback)
+                    if (data['usesTermFrom']) {
+                        const usesTermFrom = Array.isArray(data['usesTermFrom']) ? data['usesTermFrom'] : [data['usesTermFrom']];
+                        console.log(`🎯 Found direct usesTermFrom:`, usesTermFrom);
+                        
+                        usesTermFrom.forEach((relationshipObj, index) => {
+                            console.log(`📚 UsesTermFrom relationship ${index}:`, relationshipObj);
+                            if (relationshipObj && relationshipObj['hasArtifact']) {
+                                const artifactUrl = relationshipObj['hasArtifact'];
+                                console.log(`📚 Found usesTermFrom hasArtifact URL: ${artifactUrl}`);
+                                uses.push(artifactUrl);
+                            } else {
+                                console.log(`⚠️ No hasArtifact in usesTermFrom relationship ${index}`);
+                            }
+                        });
+                    }
+                    
+                    // Look for vocabulary/ontology imports (fallback)
+                    if (data['owl:imports']) {
+                        const imports = Array.isArray(data['owl:imports']) ? data['owl:imports'] : [data['owl:imports']];
+                        imports.forEach(imp => {
+                            if (typeof imp === 'string') {
+                                uses.push(imp);
+                            } else if (imp && imp['@id']) {
+                                uses.push(imp['@id']);
+                            }
+                        });
+                    }
+                    
+                    // Look for dcterms:requires
+                    if (data['dcterms:requires']) {
+                        const requires = Array.isArray(data['dcterms:requires']) ? data['dcterms:requires'] : [data['dcterms:requires']];
+                        requires.forEach(req => {
+                            if (typeof req === 'string') {
+                                uses.push(req);
+                            } else if (req && req['@id']) {
+                                uses.push(req['@id']);
+                            }
+                        });
+                    }
+                }
+                
+                console.log(`� Final extracted uses:`, uses);
+                return [...new Set(uses)]; // Remove duplicates
+            }
+
+            extractType(data) {
+                if (Array.isArray(data)) {
+                    // Look for the specification object (not the document)
+                    for (const item of data) {
+                        if (item && item['@type']) {
+                            const type = Array.isArray(item['@type']) ? item['@type'] : [item['@type']];
+                            // Check for DSV types first
+                            if (type.some(t => t.includes('ApplicationProfile') && !t.includes('Document'))) {
+                                console.log(`📋 Found type: Application Profile`);
+                                return 'Application Profile';
+                            }
+                            if (type.some(t => t.includes('Vocabulary'))) {
+                                console.log(`📋 Found type: Vocabulary`);
+                                return 'Vocabulary';
+                            }
+                            if (type.some(t => t.includes('Profile') && !t.includes('Document'))) {
+                                console.log(`📋 Found type: Profile`);
+                                return 'Profile';
+                            }
+                        }
+                    }
+                    
+                    // Fallback to checking each item
+                    for (const item of data) {
+                        const type = this.extractType(item);
+                        if (type && type !== 'Specification') return type;
+                    }
+                }
+                
+                if (typeof data === 'object' && data !== null) {
+                    if (data['@type']) {
+                        const type = Array.isArray(data['@type']) ? data['@type'][0] : data['@type'];
+                        if (type.includes('ApplicationProfile') && !type.includes('Document')) return 'Application Profile';
+                        if (type.includes('Vocabulary')) return 'Vocabulary';
+                        if (type.includes('Profile') && !type.includes('Document')) return 'Profile';
+                    }
+                }
+                
+                return 'Specification';
+            }
+
+            extractNameFromUrl(url) {
+                return url.split('/').filter(part => part && part !== 'https:' && part !== 'http:').pop() || url;
+            }
+        }
+
+        // Initialize DSV Parser
+        const dsvParser = new DSVParser();
+        
+        // Global state
+        let network = null;
+        let nodes = null;
+        let edges = null;
+        let loadedSpecs = new Map();
+
+        function showStatus(message, type = 'info') {
+            const statusEl = document.getElementById('status');
+            if (statusEl) {
+                statusEl.textContent = message;
+                statusEl.className = `status-${type}`;
+            }
+        }
+
+        async function initializeNetwork() {
+            try {
+                showStatus('Initializing network visualization...', 'info');
+                
+                const container = document.getElementById('network-visualization');
+                if (!container) {
+                    throw new Error('Network container not found');
+                }
+
+                // Create datasets
+                nodes = new vis.DataSet([]);
+                edges = new vis.DataSet([]);
+
+                // Configure vis-network options
+                const options = {
+                    autoResize: false,
+                    height: '100%',
+                    width: '100%',
+                    nodes: {
+                        shape: 'dot',
+                        scaling: {
+                            min: 20,
+                            max: 50
+                        },
+                        font: {
+                            size: 14,
+                            face: 'Arial'
+                        },
+                        borderWidth: 2,
+                        shadow: true
+                    },
+                    edges: {
+                        width: 2,
+                        shadow: true,
+                        smooth: {
+                            type: 'continuous'
+                        }
+                    },
+                    physics: {
+                        enabled: true,
+                        stabilization: {
+                            iterations: 100
+                        }
+                    },
+                    layout: {
+                        improvedLayout: false
+                    },
+                    interaction: {
+                        tooltipDelay: 200,
+                        hideEdgesOnDrag: false,
+                        hideNodesOnDrag: false
+                    },
+                    configure: {
+                        enabled: false
+                    }
+                };
+
+                console.log('Creating vis.Network...');
+                network = new vis.Network(container, { nodes, edges }, options);
+                console.log('Network created successfully');
+                
+                // Manually handle resize to prevent infinite loops
+                let resizeTimeout;
+                const handleResize = () => {
+                    if (resizeTimeout) clearTimeout(resizeTimeout);
+                    resizeTimeout = setTimeout(() => {
+                        if (network) {
+                            try {
+                                network.redraw();
+                                console.log('🔄 Network manually resized');
+                            } catch (e) {
+                                console.warn('Resize redraw failed:', e);
+                            }
+                        }
+                    }, 100);
+                };
+                
+                // Listen for window resize
+                window.addEventListener('resize', handleResize);
+                
+                network.on('stabilizationIterationsDone', () => {
+                    network.setOptions({ physics: false });
+                    console.log('✅ Network stabilized');
+                });
+                
+                network.on('click', (params) => {
+                    if (params.nodes.length > 0) {
+                        highlightNode(params.nodes[0]);
+                    }
+                });
+
+                showStatus('✅ DSV Browser ready! Load a specification to get started.', 'success');
+                return true;
+                
+            } catch (error) {
+                console.error('❌ Network initialization failed:', error);
+                showStatus(`Initialization failed: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function loadSpecificationFromURL() {
+            const urlInput = document.getElementById('spec-url');
+            const url = urlInput.value.trim();
+            
+            if (!url) {
+                showStatus('Please enter a specification URL', 'error');
+                return;
+            }
+            
+            try {
+                await loadSpecificationWithDependencies(url);
+                showStatus(`✅ Loaded specification and dependencies`, 'success');
+            } catch (error) {
+                console.error('Failed to load specification:', error);
+                showStatus(`❌ Failed to load specification: ${error.message}`, 'error');
+            }
+        }
+
+        function isVocabularyUrl(url) {
+            // Check if URL points to a vocabulary file (RDF formats)
+            const vocabularyExtensions = ['.jsonld', '.ttl', '.rdf', '.owl', '.n3', '.nt'];
+            const lowerUrl = url.toLowerCase();
+            
+            for (const ext of vocabularyExtensions) {
+                if (lowerUrl.endsWith(ext) || lowerUrl.includes(ext + '/') || lowerUrl.includes(ext + '?')) {
+                    console.log(`🔍 ${url} identified as vocabulary due to extension ${ext}`);
+                    return true;
+                }
+            }
+            
+            // Additional patterns that indicate vocabularies
+            const vocabularyPatterns = [
+                '/voc/', '/vocab/', '/ontology/', '/vocabulary/', 
+                'w3.org', 'europa.eu/documents/', 'dbpedia.org',
+                'schema.org', 'xmlns.com', 'purl.org'
+            ];
+            for (const pattern of vocabularyPatterns) {
+                if (lowerUrl.includes(pattern)) {
+                    console.log(`🔍 ${url} identified as vocabulary due to pattern ${pattern}`);
+                    return true;
+                }
+            }
+            
+            // Additional heuristics for vocabulary URLs
+            if (lowerUrl.includes('/releases/') && (lowerUrl.includes('.jsonld') || lowerUrl.includes('.owl') || lowerUrl.includes('.ttl'))) {
+                console.log(`🔍 ${url} identified as vocabulary due to releases + RDF pattern`);
+                return true;
+            }
+            
+            console.log(`🔍 ${url} identified as DSV specification (not vocabulary)`);
+            return false;
+        }
+
+        async function loadSpecificationWithDependencies(url, visited = new Set()) {
+            // Avoid infinite loops
+            if (visited.has(url)) {
+                console.log(`🔄 Already visited ${url}, skipping`);
+                return null;
+            }
+            visited.add(url);
+
+            try {
+                showStatus(`Loading ${url}...`, 'info');
+                const spec = await dsvParser.parseSpecification(url);
+                addSpecificationToGraph(spec);
+
+                // Load dependencies transitively
+                const dependenciesToLoad = [...spec.profiles, ...spec.uses];
+                console.log(`🔗 Dependencies found for ${spec.title}: ${dependenciesToLoad.length}`);
+                console.log(`   Profiles: [${spec.profiles.join(', ')}]`);
+                console.log(`   Uses: [${spec.uses.join(', ')}]`);
+                console.log(`🔗 All dependencies to load:`, dependenciesToLoad);
+                
+                for (let i = 0; i < dependenciesToLoad.length; i++) {
+                    const depUrl = dependenciesToLoad[i];
+                    console.log(`🔗 Processing dependency ${i}/${dependenciesToLoad.length}: ${depUrl}`);
+                    
+                    if (depUrl) {
+                        const depId = dsvParser.generateId(depUrl);
+                        const isAlreadyLoaded = loadedSpecs.has(depId);
+                        console.log(`🔍 Checking dependency: ${depUrl}`);
+                        console.log(`   Generated ID: ${depId}`);
+                        console.log(`   Already loaded: ${isAlreadyLoaded}`);
+                        console.log(`   Loaded specs: [${Array.from(loadedSpecs.keys()).join(', ')}]`);
+                        
+                        if (!isAlreadyLoaded) {
+                            try {
+                                console.log(`📥 Loading dependency: ${depUrl}`);
+                                
+                                // Check if this is a vocabulary (RDF file) or a DSV specification
+                                if (isVocabularyUrl(depUrl)) {
+                                    console.log(`📚 Treating ${depUrl} as vocabulary (leaf node)`);
+                                    // Create a simple vocabulary node without recursive loading
+                                    const vocabSpec = await dsvParser.createVocabularySpecification(depUrl);
+                                    addSpecificationToGraph(vocabSpec);
+                                } else {
+                                    console.log(`📋 Treating ${depUrl} as DSV specification (recursive loading)`);
+                                    try {
+                                        // Try to load as full DSV specification with recursive dependencies
+                                        await loadSpecificationWithDependencies(depUrl, visited);
+                                    } catch (dsvError) {
+                                        console.warn(`⚠️ Failed to load ${depUrl} as DSV specification, falling back to vocabulary:`, dsvError);
+                                        // Fallback: treat as vocabulary if DSV loading fails
+                                        console.log(`📚 Fallback: Treating ${depUrl} as vocabulary due to DSV failure`);
+                                        const vocabSpec = await dsvParser.createVocabularySpecification(depUrl);
+                                        addSpecificationToGraph(vocabSpec);
+                                    }
+                                }
+                            } catch (depError) {
+                                console.warn(`⚠️ Failed to load dependency ${depUrl}:`, depError);
+                                // Continue with other dependencies even if one fails
+                            }
+                        } else {
+                            console.log(`✅ Dependency ${depUrl} already loaded`);
+                        }
+                    }
+                }
+
+                // After loading dependencies, update relationships
+                updateRelationships();
+                
+                return spec;
+            } catch (error) {
+                console.warn(`❌ Failed to load specification ${url}:`, error);
+                throw error;
+            }
+        }
+
+        function updateRelationships() {
+            // Update edges based on currently loaded specifications
+            const currentEdges = edges.get();
+            const edgesToAdd = [];
+
+            for (const spec of loadedSpecs.values()) {
+                // Add profile relationships
+                spec.profiles.forEach(profiledUrl => {
+                    const profiledId = dsvParser.generateId(profiledUrl);
+                    if (loadedSpecs.has(profiledId)) {
+                        const edgeId = `${spec.id}-profiles-${profiledId}`;
+                        if (!currentEdges.find(e => e.id === edgeId)) {
+                            edgesToAdd.push({
+                                id: edgeId,
+                                from: spec.id,
+                                to: profiledId,
+                                label: 'profiles',
+                                arrows: 'to',
+                                color: '#667eea',
+                                width: 2
+                            });
+                        }
+                    }
+                });
+
+                // Add uses relationships
+                spec.uses.forEach(usedUrl => {
+                    const usedId = dsvParser.generateId(usedUrl);
+                    if (loadedSpecs.has(usedId)) {
+                        const edgeId = `${spec.id}-uses-${usedId}`;
+                        if (!currentEdges.find(e => e.id === edgeId)) {
+                            edgesToAdd.push({
+                                id: edgeId,
+                                from: spec.id,
+                                to: usedId,
+                                label: 'uses',
+                                arrows: 'to',
+                                color: '#48bb78',
+                                width: 2
+                            });
+                        }
+                    }
+                });
+            }
+
+            if (edgesToAdd.length > 0) {
+                edges.add(edgesToAdd);
+                console.log(`Added ${edgesToAdd.length} relationship edges`);
+                
+                // Fit the network view after adding relationships
+                setTimeout(() => {
+                    if (network && loadedSpecs.size > 1) {
+                        try {
+                            network.fit({ animation: { duration: 1000 } });
+                            console.log('✅ Network view fitted after adding relationships');
+                        } catch (fitError) {
+                            console.warn('Error fitting network:', fitError);
+                        }
+                    }
+                }, 500);
+            }
+        }
+
+        function loadPredefinedSpec(url) {
+            document.getElementById('spec-url').value = url;
+            loadSpecificationFromURL();
+        }
+
+        function addSpecificationToGraph(spec) {
+            if (!network || !nodes || !edges) {
+                console.error('❌ Network not initialized!');
+                return;
+            }
+
+            // Check if spec already exists
+            if (loadedSpecs.has(spec.id)) {
+                console.log(`Specification ${spec.title} already loaded`);
+                return;
+            }
+
+            // Store the spec
+            loadedSpecs.set(spec.id, spec);
+
+            // Add node to the graph
+            const node = {
+                id: spec.id,
+                label: spec.title,
+                title: createNodeTooltip(spec),
+                color: getNodeColor(spec.type),
+                size: 30
+            };
+
+            nodes.add(node);
+
+            // Update the specification list
+            updateSpecificationList();
+
+            console.log(`✅ Added specification: ${spec.title} (${spec.type})`);
+            console.log(`  Profiles: ${spec.profiles.length > 0 ? spec.profiles.join(', ') : 'none'}`);
+            console.log(`  Uses: ${spec.uses.length > 0 ? spec.uses.join(', ') : 'none'}`);
+        }
+
+        function createNodeTooltip(spec) {
+            const title = spec.title || spec.id || 'Untitled';
+            console.log(`🖱️ Creating tooltip for spec with title: '${spec.title}', using: '${title}'`);
+            
+            const parts = [
+                title,
+                `Type: ${spec.type}`,
+                `URL: ${spec.url}`
+            ];
+            
+            if (spec.description && spec.description !== `Specification loaded from ${spec.url}`) {
+                parts.push(`Description: ${spec.description}`);
+            }
+            
+            if (spec.profiles && spec.profiles.length > 0) {
+                parts.push(`Profiles: ${spec.profiles.length} specification(s)`);
+            }
+            
+            if (spec.uses && spec.uses.length > 0) {
+                parts.push(`Uses: ${spec.uses.length} vocabulary(s)`);
+            }
+            
+            return parts.join('\n');
+        }
+
+        function getNodeColor(type) {
+            switch (type) {
+                case 'Profile': return '#CD853F';
+                case 'Vocabulary': return '#4CAF50';
+                case 'Specification': return '#CD853F';
+                case 'dsv:ApplicationProfile': return '#CD853F';
+                default: return '#718096';
+            }
+        }
+
+        function updateSpecificationList() {
+            const container = document.getElementById('specs-container');
+            if (!container) return;
+
+            if (loadedSpecs.size === 0) {
+                container.innerHTML = '<div class="loading">No specifications loaded yet</div>';
+                return;
+            }
+
+            const specsHtml = Array.from(loadedSpecs.values()).map(spec => {
+                let profilesInfo = '';
+                let usesInfo = '';
+                
+                if (spec.profiles && spec.profiles.length > 0) {
+                    profilesInfo = `<div class="spec-relationships">Profiles: ${spec.profiles.length} spec(s)</div>`;
+                }
+                
+                if (spec.uses && spec.uses.length > 0) {
+                    usesInfo = `<div class="spec-relationships">Uses: ${spec.uses.length} vocab(s)</div>`;
+                }
+                
+                return `
+                <div class="spec-item">
+                    <div class="spec-title">${spec.title || 'Untitled Specification'}</div>
+                    <div class="spec-url">${spec.url}</div>
+                    <div class="spec-type">${spec.type}</div>
+                    ${profilesInfo}
+                    ${usesInfo}
+                </div>
+            `;
+            }).join('');
+
+            container.innerHTML = specsHtml;
+        }
+
+        function clearAll() {
+            if (nodes && edges) {
+                nodes.clear();
+                edges.clear();
+                loadedSpecs.clear();
+                updateSpecificationList();
+                showStatus('All specifications cleared', 'info');
+            }
+        }
+
+        function highlightNode(nodeId) {
+            const spec = loadedSpecs.get(nodeId);
+            if (spec) {
+                showStatus(`Selected: ${spec.title} (${spec.type})`, 'info');
+            }
+        }
+
+        // Filter out ResizeObserver errors
+        window.addEventListener('error', (event) => {
+            if (event.message && event.message.includes('ResizeObserver loop completed')) {
+                console.log('ℹ️ Harmless ResizeObserver warning from vis-network (can be ignored)');
+                return;
+            }
+            
+            console.error('Global error caught:', event);
+        });
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 Initializing DSV Browser...');
+            initializeNetwork();
+        });
+    </script>
+</body>
+</html>

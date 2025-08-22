@@ -1,0 +1,32 @@
+{
+  "name": "dsv-browser",
+  "version": "1.0.0",
+  "description": "A web application for visualizing Data Specification Vocabulary (DSV) enabled specifications and their interconnections",
+  "main": "index.html",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "serve": "vite preview --port 3000"
+  },
+  "keywords": [
+    "dsv",
+    "data-specification-vocabulary",
+    "visualization",
+    "rdf",
+    "linked-data",
+    "application-profiles"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "vite": "^5.0.0"
+  },
+  "dependencies": {
+    "d3": "^7.8.5",
+    "vis-network": "^9.1.9",
+    "jsonld": "^8.3.2",
+    "n3": "^1.17.2"
+  }
+}
